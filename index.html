@@ -47,6 +47,7 @@
             <p id="game-meta" class="intro"></p>
           </div>
         </div>
+        <p id="hidden-guesses" class="hidden-guesses" hidden></p>
         <div id="board-wrap" class="board-wrap">
           <div id="board" class="board" aria-label="Wordle game board"></div>
         </div>
@@ -72,5 +73,8 @@
         <p id="game-message" class="message dock-message" role="status" aria-live="polite"></p>
       </div>
     </aside>
+    <div id="horizontal-scrollbar" class="horizontal-scrollbar" hidden>
+      <input id="board-scroll-range" type="range" min="0" value="0" aria-label="Scroll across the current guess" />
+    </div>
   </body>
 </html>

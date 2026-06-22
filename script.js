@@ -1,4 +1,6 @@
 const MAX_WORD_LENGTH = 1000;
+const MAX_RENDERED_ROWS = 100;
+const MAX_RENDERED_TILES = 15000;
 const KEY_ROWS = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
 const KEY_STATUS_PRIORITY = { absent: 1, present: 2, correct: 3 };
 const KEY_STATUS_CLASSES = ['absent', 'present', 'correct'];
@@ -13,6 +15,9 @@ const creatorMessage = document.querySelector('#creator-message');
 const wordValidation = document.querySelector('#word-validation');
 const board = document.querySelector('#board');
 const boardWrap = document.querySelector('#board-wrap');
+const hiddenGuesses = document.querySelector('#hidden-guesses');
+const horizontalScrollbar = document.querySelector('#horizontal-scrollbar');
+const boardScrollRange = document.querySelector('#board-scroll-range');
 const historyActions = document.querySelector('#history-actions');
 const copyHistory = document.querySelector('#copy-history');
 const gameMeta = document.querySelector('#game-meta');
@@ -31,6 +36,7 @@ let secret = '';
 let latestScore = [];
 let latestGuess = '';
 let guessHistory = [];
+let hiddenGuessCount = 0;
 let baseTileSize = '';
 let followFrame = 0;
 let followTarget = 0;
@@ -188,7 +194,8 @@ function keepTileVisible(tile) {
 }
 
 function smoothlyFollowTo(left) {
-  followTarget = left;
+  const maximum = Math.max(0, boardWrap.scrollWidth - boardWrap.clientWidth);
+  followTarget = Math.max(0, Math.min(maximum, left));
   if (followFrame) return;
   const step = () => {
     const current = boardWrap.scrollLeft;
@@ -205,6 +212,12 @@ function smoothlyFollowTo(left) {
   followFrame = requestAnimationFrame(step);
 }
 
+function stopHorizontalFollow() {
+  if (followFrame) cancelAnimationFrame(followFrame);
+  followFrame = 0;
+  followTarget = boardWrap.scrollLeft;
+}
+
 function focusTile(tile, direction = 'nextElementSibling') {
   while (tile?.classList.contains('space')) tile = tile[direction];
   if (!tile) return;
@@ -215,10 +228,36 @@ function focusTile(tile, direction = 'nextElementSibling') {
 function keepElementAboveDock(element) {
   requestAnimationFrame(() => {
     const dockHeight = gameDock.hidden ? 0 : gameDock.getBoundingClientRect().height;
-    const safeBottom = window.innerHeight - dockHeight - 20;
+    const scrollbarHeight = horizontalScrollbar.hidden ? 0 : horizontalScrollbar.getBoundingClientRect().height;
+    const safeBottom = window.innerHeight - dockHeight - scrollbarHeight - 20;
     const elementBottom = element.getBoundingClientRect().bottom;
     if (elementBottom > safeBottom) window.scrollBy({ top: elementBottom - safeBottom, behavior: 'smooth' });
   });
+}
+
+function renderedRowLimit() {
+  return Math.max(12, Math.min(MAX_RENDERED_ROWS, Math.floor(MAX_RENDERED_TILES / secret.length)));
+}
+
+function pruneRenderedGuesses() {
+  const limit = renderedRowLimit();
+  while (board.childElementCount > limit && board.firstElementChild?.dataset.scored) {
+    board.firstElementChild.remove();
+    hiddenGuessCount += 1;
+  }
+  hiddenGuesses.hidden = hiddenGuessCount === 0;
+  hiddenGuesses.textContent = hiddenGuessCount ? `${hiddenGuessCount} older guess${hiddenGuessCount === 1 ? '' : 'es'} hidden to keep the game fast.` : '';
+}
+
+function syncDockHeight() {
+  document.documentElement.style.setProperty('--dock-height', `${gameDock.getBoundingClientRect().height}px`);
+}
+
+function syncHorizontalScrollbar() {
+  const maximum = Math.max(0, Math.ceil(boardWrap.scrollWidth - boardWrap.clientWidth));
+  horizontalScrollbar.hidden = maximum === 0;
+  boardScrollRange.max = String(maximum);
+  boardScrollRange.value = String(Math.min(Math.round(boardWrap.scrollLeft), maximum));
 }
 
 function createRow(focusFirst = false, prefix = '') {
@@ -236,6 +275,8 @@ function createRow(focusFirst = false, prefix = '') {
     row.append(input);
   }
   board.append(row);
+  pruneRenderedGuesses();
+  syncHorizontalScrollbar();
   if (focusFirst) focusTile(row.children[Math.min(prefix.length, secret.length - 1)]);
   keepElementAboveDock(row);
   return row;
@@ -267,6 +308,25 @@ function handleTileKey(event, row, input) {
   if (event.key === 'Enter') { event.preventDefault(); submitRow(row); }
 }
 
+function pasteIntoRow(row, startInput, text) {
+  const letters = normalizeWord(text);
+  if (!letters) return false;
+
+  const inputs = [...row.children];
+  let index = inputs.indexOf(startInput);
+  for (const letter of letters) {
+    while (inputs[index]?.readOnly) index += 1;
+    if (!inputs[index]) break;
+    inputs[index].value = letter;
+    inputs[index].classList.add('filled');
+    index += 1;
+  }
+
+  const nextInput = inputs.slice(index).find(input => !input.readOnly);
+  if (nextInput) focusTile(nextInput);
+  return true;
+}
+
 function submitRow(row) {
   if (row.dataset.scored) return;
   const inputs = [...row.children];
@@ -295,7 +355,8 @@ function submitRow(row) {
   if (guess === secret) {
     historyActions.hidden = false;
     keepElementAboveDock(historyActions);
-    setMessage(gameMessage, 'You solved it!');
+    const guessLabel = guessHistory.length === 1 ? 'guess' : 'guesses';
+    setMessage(gameMessage, `You solved it in ${guessHistory.length} ${guessLabel}!`);
   }
   else { setMessage(gameMessage, ''); createRow(true, correctPrefix); }
 }
@@ -307,8 +368,9 @@ function copyCorrectPrefix() {
 }
 
 function startGame(word) {
-  secret = word; latestScore = []; latestGuess = ''; guessHistory = []; lastActiveTile = null; board.replaceChildren();
+  secret = word; latestScore = []; latestGuess = ''; guessHistory = []; hiddenGuessCount = 0; lastActiveTile = null; board.replaceChildren();
   creator.hidden = true; game.hidden = false; gameDock.hidden = false;
+  syncDockHeight();
   gameMeta.textContent = `${secret.replaceAll(' ', '').length} letters · unlimited guesses`;
   baseTileSize = tileSizeFor(secret.length);
   boardZoom.value = '175'; zoomValue.value = '175%'; zoomValue.textContent = '175%';
@@ -318,6 +380,7 @@ function startGame(word) {
   copyLastGuess.disabled = true;
   revealWord.disabled = false;
   historyActions.hidden = true;
+  hiddenGuesses.hidden = true; hiddenGuesses.textContent = '';
   setMessage(gameMessage, '');
   createRow(true);
 }
@@ -334,7 +397,7 @@ creatorForm.addEventListener('submit', event => {
 });
 customWord.addEventListener('input', validateCustomWord);
 document.querySelector('#copy-link').addEventListener('click', () => copyText(shareLink.value, 'Link copied.'));
-document.querySelector('#new-game').addEventListener('click', () => { history.replaceState({}, '', window.location.pathname); secret = ''; game.hidden = true; gameDock.hidden = true; creator.hidden = false; customWord.focus(); });
+document.querySelector('#new-game').addEventListener('click', () => { history.replaceState({}, '', window.location.pathname); secret = ''; game.hidden = true; gameDock.hidden = true; horizontalScrollbar.hidden = true; creator.hidden = false; customWord.focus(); });
 revealWord.addEventListener('click', () => {
   const row = board.querySelector('.row:not([data-scored])');
   if (!row) return;
@@ -351,10 +414,31 @@ revealWord.addEventListener('click', () => {
 copyLastGuess.addEventListener('click', () => copyText(latestGuess, `Copied ${latestGuess}.`));
 copyHistory.addEventListener('click', () => copyText(guessHistory.join('\n'), 'Guess history copied.'));
 boardZoom.addEventListener('input', () => {
+  const previousMaximum = Math.max(0, boardWrap.scrollWidth - boardWrap.clientWidth);
+  const horizontalProgress = previousMaximum ? boardWrap.scrollLeft / previousMaximum : 0;
+  stopHorizontalFollow();
   const percent = Number(boardZoom.value);
   zoomValue.value = `${percent}%`; zoomValue.textContent = `${percent}%`;
   board.style.setProperty('--tile-size', scaledTileSize());
+  requestAnimationFrame(() => {
+    const nextMaximum = Math.max(0, boardWrap.scrollWidth - boardWrap.clientWidth);
+    boardWrap.scrollLeft = nextMaximum * horizontalProgress;
+    followTarget = boardWrap.scrollLeft;
+    syncHorizontalScrollbar();
+  });
 });
+boardScrollRange.addEventListener('input', () => {
+  stopHorizontalFollow();
+  boardWrap.scrollLeft = Number(boardScrollRange.value);
+});
+boardWrap.addEventListener('scroll', () => { boardScrollRange.value = String(Math.round(boardWrap.scrollLeft)); });
+document.addEventListener('wheel', event => {
+  if (!event.shiftKey || !event.deltaY || game.hidden || horizontalScrollbar.hidden) return;
+  if (event.target instanceof Element && event.target.matches('input, textarea, select')) return;
+  event.preventDefault();
+  stopHorizontalFollow();
+  boardWrap.scrollBy({ left: event.deltaY * 2.5, behavior: 'smooth' });
+}, { passive: false });
 document.addEventListener('keydown', event => {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c' && secret && latestScore[0]?.state === 'correct') {
     event.preventDefault();
@@ -378,8 +462,24 @@ document.addEventListener('keydown', event => {
   input.value = event.key.toUpperCase();
   input.dispatchEvent(new Event('input', { bubbles: true }));
 });
+document.addEventListener('paste', event => {
+  if (event.target instanceof Element && event.target.matches('input:not(.tile), textarea, [contenteditable="true"]')) return;
+
+  const row = board.querySelector('.row:not([data-scored])');
+  if (!row) return;
+  const inputs = [...row.children];
+  const startInput = inputs.includes(lastActiveTile) && !lastActiveTile.readOnly
+    ? lastActiveTile
+    : inputs.find(input => !input.value && !input.readOnly);
+  if (!startInput) return;
+
+  if (pasteIntoRow(row, startInput, event.clipboardData?.getData('text') || '')) event.preventDefault();
+});
 
 const encodedWord = new URLSearchParams(window.location.search).get('word');
 const decodedWord = encodedWord ? decodeWord(encodedWord) : '';
 if (decodedWord) startGame(decodedWord);
 else if (encodedWord) setMessage(creatorMessage, 'That link does not contain a valid custom word.');
+
+new ResizeObserver(() => { syncDockHeight(); syncHorizontalScrollbar(); }).observe(gameDock);
+new ResizeObserver(syncHorizontalScrollbar).observe(boardWrap);

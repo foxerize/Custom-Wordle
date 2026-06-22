@@ -47,6 +47,7 @@ label { display: block; margin-bottom: 0.45rem; font-weight: 700; }
 .game-heading { display: flex; justify-content: space-between; align-items: end; gap: 1rem; width: min(100%, 66rem); margin-inline: auto; }
 .game-heading h1 { font-size: clamp(1.7rem, 6vw, 2.5rem); }
 .game-heading .intro { margin: 0.35rem 0 0; }
+.hidden-guesses { width: min(100%, 66rem); margin: 1rem auto 0; color: var(--muted); font-size: 0.85rem; text-align: center; }
 .game-dock { position: fixed; z-index: 10; right: 0; bottom: 0; left: 0; border-top: 1px solid var(--border); background: rgba(18, 18, 19, 0.96); box-shadow: 0 -0.75rem 2rem rgba(0, 0, 0, 0.28); backdrop-filter: blur(0.6rem); }
 .dock-inner { position: relative; width: min(100%, 66rem); margin: auto; padding: 0.5rem 1rem 0.65rem; }
 .status-boxes { display: flex; justify-content: center; gap: 0.5rem; }
@@ -64,11 +65,10 @@ label { display: block; margin-bottom: 0.45rem; font-weight: 700; }
 .game-actions { display: flex; justify-content: space-between; width: min(100%, 34rem); margin: 0.35rem auto; }
 .game-actions button { padding: 0.4rem 0.6rem; border-radius: 0.25rem; color: #fff; background: #565758; font-size: 0.75rem; }
 .game-actions button:hover { background: #787c7e; }
-.board-wrap { max-width: 100%; overflow-x: auto; scrollbar-color: #787c7e #272729; scrollbar-gutter: stable; padding: 0.2rem 0 1rem; }
-.board-wrap::-webkit-scrollbar { height: 0.7rem; }
-.board-wrap::-webkit-scrollbar-track { border: 3px solid #121213; border-radius: 999px; background: #272729; }
-.board-wrap::-webkit-scrollbar-thumb { border: 3px solid #121213; border-radius: 999px; background: #787c7e; }
-.board-wrap::-webkit-scrollbar-thumb:hover { background: #a1a1a4; }
+.board-wrap { max-width: 100%; overflow-x: auto; padding: 0.2rem 0.35rem 1rem; scrollbar-width: none; }
+.board-wrap::-webkit-scrollbar { display: none; }
+.horizontal-scrollbar { position: fixed; z-index: 9; right: 0; bottom: var(--dock-height, 12rem); left: 0; padding: 0.3rem 1rem; border-top: 1px solid var(--border); background: rgba(18, 18, 19, 0.96); }
+.horizontal-scrollbar input { display: block; width: min(100%, 66rem); margin: auto; accent-color: #93c47d; cursor: ew-resize; }
 .board { display: grid; justify-content: start; gap: var(--gap); width: max-content; margin-inline: auto; }
 .history-actions { width: min(100%, 66rem); margin: 0.5rem auto 0; text-align: center; }
 .history-actions button { background: #565758; color: #fff; }
