@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Create and play custom Wordle games." />
+    <title>Custom Wordle</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script defer src="./script.js"></script>
+  </head>
+  <body>
+    <main class="page">
+      <header class="site-header">
+        <a class="brand" href="./">Custom Wordle</a>
+        <button id="new-game" class="text-button" type="button">Create a word</button>
+      </header>
+
+      <section id="creator" class="panel creator-panel" aria-labelledby="creator-title">
+        <p class="eyebrow">New game</p>
+        <h1 id="creator-title">Make a Wordle</h1>
+        <p class="intro">Type a word, then share the link.</p>
+        <form id="creator-form" class="creator-form">
+          <label for="custom-word">Word</label>
+          <div class="word-entry">
+            <input id="custom-word" name="word" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. MARSHMALLOW" maxlength="1000" required />
+            <button type="submit">Create link</button>
+          </div>
+          <label class="space-option"><input id="keep-spaces" type="checkbox" /> Keep spaces in the puzzle</label>
+          <p class="field-help">Letters and spaces · up to 1,000 characters.</p>
+          <p id="word-validation" class="field-error" role="alert" aria-live="polite"></p>
+        </form>
+        <div id="share-result" class="share-result" hidden>
+          <label for="share-link">Share this link</label>
+          <div class="copy-row">
+            <input id="share-link" type="text" readonly />
+            <button id="copy-link" type="button">Copy</button>
+          </div>
+        </div>
+        <p id="creator-message" class="message" role="status" aria-live="polite"></p>
+      </section>
+
+      <section id="game" class="game" hidden aria-labelledby="game-title">
+        <div class="game-heading">
+          <div>
+            <p class="eyebrow">Unlimited guesses</p>
+            <h1 id="game-title">Custom Wordle</h1>
+            <p id="game-meta" class="intro"></p>
+          </div>
+        </div>
+        <div id="board-wrap" class="board-wrap">
+          <div id="board" class="board" aria-label="Wordle game board"></div>
+        </div>
+      </section>
+    </main>
+    <aside id="game-dock" class="game-dock" hidden aria-label="Game controls">
+      <div class="dock-inner">
+        <div class="status-boxes" aria-live="polite">
+          <span class="status-box correct"><strong id="correct-count">0</strong> correct</span>
+          <span class="status-box present"><strong id="present-count">0</strong> wrong spot</span>
+          <span class="status-box absent"><strong id="absent-count">0</strong> missing</span>
+        </div>
+        <label class="zoom-control" for="board-zoom">Board size <input id="board-zoom" type="range" min="70" max="300" value="175" /> <output id="zoom-value" for="board-zoom">175%</output></label>
+        <div class="game-actions">
+          <button id="reveal-word" type="button">Reveal word</button>
+          <button id="copy-last-guess" type="button" disabled>Copy last guess</button>
+        </div>
+        <div id="keyboard" class="keyboard" aria-label="On-screen keyboard"></div>
+        <p id="game-message" class="message dock-message" role="status" aria-live="polite"></p>
+      </div>
+    </aside>
+  </body>
+</html>
