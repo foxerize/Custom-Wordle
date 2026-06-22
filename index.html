@@ -50,6 +50,9 @@
         <div id="board-wrap" class="board-wrap">
           <div id="board" class="board" aria-label="Wordle game board"></div>
         </div>
+        <div id="history-actions" class="history-actions" hidden>
+          <button id="copy-history" type="button">Copy guess history</button>
+        </div>
       </section>
     </main>
     <aside id="game-dock" class="game-dock" hidden aria-label="Game controls">
@@ -60,6 +63,7 @@
           <span class="status-box absent"><strong id="absent-count">0</strong> missing</span>
         </div>
         <label class="zoom-control" for="board-zoom">Board size <input id="board-zoom" type="range" min="70" max="300" value="175" /> <output id="zoom-value" for="board-zoom">175%</output></label>
+        <label class="incomplete-option"><input id="allow-incomplete" type="checkbox" /> Allow incomplete guesses</label>
         <div class="game-actions">
           <button id="reveal-word" type="button">Reveal word</button>
           <button id="copy-last-guess" type="button" disabled>Copy last guess</button>
