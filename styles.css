@@ -39,29 +39,33 @@ label { display: block; margin-bottom: 0.45rem; font-weight: 700; }
 .field-help { margin: 0.5rem 0 0; font-size: 0.85rem; }
 .space-option { display: flex; align-items: center; gap: 0.5rem; width: fit-content; margin-top: 0.8rem; color: var(--muted); font-size: 0.9rem; font-weight: 600; }
 .space-option input { width: 1rem; height: 1rem; accent-color: #93c47d; }
+.guess-limit-option { display: flex; align-items: center; gap: 0.5rem; width: fit-content; margin-top: 0.7rem; color: var(--muted); font-size: 0.9rem; font-weight: 600; }
+.guess-limit-option input[type="checkbox"] { width: 1rem; height: 1rem; accent-color: #93c47d; }
+.guess-limit-option input[type="number"] { width: 4.25rem; border: 1px solid #565758; border-radius: 0.25rem; padding: 0.25rem 0.35rem; color: #fff; background: #121213; }
 .field-error { min-height: 1.1rem; margin: 0.35rem 0 0; color: #f87171; font-size: 0.85rem; font-weight: 650; }
 .share-result { margin-top: 1.25rem; }
 .message { min-height: 1.25rem; margin: 1rem 0 0; color: #f9d27d; }
 
-.game { width: 100%; margin: 2rem auto; padding-bottom: 15rem; }
-.game-heading { display: flex; justify-content: space-between; align-items: end; gap: 1rem; width: min(100%, 66rem); margin-inline: auto; }
+.game { width: 100%; margin: 0.75rem auto 2rem; padding-bottom: 15rem; }
+.game-heading { display: flex; justify-content: space-between; align-items: end; gap: 1rem; width: min(100%, 72rem); margin-inline: auto; }
 .game-heading h1 { font-size: clamp(1.7rem, 6vw, 2.5rem); }
 .game-heading .intro { margin: 0.35rem 0 0; }
-.hidden-guesses { width: min(100%, 66rem); margin: 1rem auto 0; color: var(--muted); font-size: 0.85rem; text-align: center; }
 .game-dock { position: fixed; z-index: 10; right: 0; bottom: 0; left: 0; border-top: 1px solid var(--border); background: rgba(18, 18, 19, 0.96); box-shadow: 0 -0.75rem 2rem rgba(0, 0, 0, 0.28); backdrop-filter: blur(0.6rem); }
-.dock-inner { position: relative; width: min(100%, 66rem); margin: auto; padding: 0.5rem 1rem 0.65rem; }
+.dock-inner { position: relative; width: min(100%, 66rem); margin: 0 auto; padding: 0.5rem 1rem; }
 .status-boxes { display: flex; justify-content: center; gap: 0.5rem; }
 .status-box { display: inline-flex; align-items: center; gap: 0.4rem; border-radius: 0.25rem; padding: 0.28rem 0.5rem; color: #fff; font-size: 0.86rem; font-weight: 700; }
 .status-box strong { font-size: 1.1rem; }
 .status-box.correct { background: var(--green); }
 .status-box.present { background: var(--yellow); }
 .status-box.absent { background: var(--gray); }
-.dock-message { width: 100vw; min-height: 1.15rem; margin: 0.4rem calc((100vw - 100%) / -2) 0; padding-left: 1rem; color: #f9d27d; font-size: 0.85rem; text-align: left; }
+.dock-message { position: absolute; bottom: 0.5rem; left: calc((100vw - 100%) / -2 + 1rem); max-width: calc((100vw - 27rem) / 2 - 1rem); min-height: 0; margin: 0; color: #f9d27d; font-size: 0.85rem; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dock-message:empty { display: none; }
 .zoom-control { display: flex; align-items: center; gap: 0.65rem; width: fit-content; margin: 0.4rem auto; color: var(--muted); font-size: 0.8rem; font-weight: 650; }
 .zoom-control input { accent-color: #93c47d; cursor: pointer; }
 .zoom-control output { width: 3rem; color: #fff; text-align: right; font-variant-numeric: tabular-nums; }
 .incomplete-option { display: flex; align-items: center; justify-content: center; gap: 0.45rem; margin: 0.3rem auto; color: var(--muted); font-size: 0.78rem; font-weight: 650; }
 .incomplete-option input { width: 0.9rem; height: 0.9rem; accent-color: #93c47d; }
+.incomplete-option[hidden] { display: none; }
 .game-actions { display: flex; justify-content: space-between; width: min(100%, 34rem); margin: 0.35rem auto; }
 .game-actions button { padding: 0.4rem 0.6rem; border-radius: 0.25rem; color: #fff; background: #565758; font-size: 0.75rem; }
 .game-actions button:hover { background: #787c7e; }
@@ -74,23 +78,29 @@ label { display: block; margin-bottom: 0.45rem; font-weight: 700; }
 .history-actions button { background: #565758; color: #fff; }
 .history-actions button:hover { background: #787c7e; }
 .row { display: grid; grid-template-columns: repeat(var(--word-length), var(--tile-size)); gap: var(--gap); }
+.row[data-scored] { contain: content; content-visibility: auto; }
+.row.canvas-row { display: flex; gap: var(--gap); }
+.scored-canvas { display: block; flex: none; }
+.canvas-placeholder { flex: none; }
 .tile { width: var(--tile-size); height: var(--tile-size); border: 2px solid var(--border); border-radius: 0; padding: 0; color: #fff; background: #121213; font-size: calc(var(--tile-size) * 0.55); font-weight: 800; line-height: 1; text-align: center; text-transform: uppercase; caret-color: transparent; }
+.tile:not(input) { display: grid; place-items: center; }
 .tile:focus { outline: 2px solid #fff; outline-offset: 1px; }
 .tile.filled { border-color: #878a8c; }
 .tile.correct { border-color: var(--green); background: var(--green); }
 .tile.present { border-color: var(--yellow); background: var(--yellow); }
 .tile.absent { border-color: var(--gray); background: var(--gray); }
 .tile.space { border-color: transparent; background: transparent; pointer-events: none; }
-.keyboard { display: grid; gap: 0.3rem; }
+.keyboard { display: grid; gap: 0.3rem; margin-inline: auto; }
 .key-row { display: flex; justify-content: center; gap: 0.3rem; }
 .key { min-width: 2.3rem; height: 2.8rem; border-radius: 0.25rem; padding: 0 0.45rem; color: #fff; background: #818384; font-size: 0.78rem; font-weight: 800; }
 .key.wide { min-width: 4rem; font-size: 0.65rem; }
 .key.correct { background: var(--green); }
 .key.present { background: var(--yellow); }
-.key.absent { background: var(--gray); }
+.key.absent { background: #242426; }
 .key:hover { background: #a1a1a4; }
 .key.correct:hover { background: var(--green); }
 .key.present:hover { background: var(--yellow); }
-.key.absent:hover { background: var(--gray); }
+.key.absent:hover { background: #242426; }
 @media (min-width: 42rem) { .game-actions { position: absolute; top: 0.5rem; right: 1rem; left: 1rem; width: auto; margin: 0; } }
+@media (max-width: 52rem) { .dock-message { position: static; width: 100vw; max-width: none; margin: 0.25rem calc((100vw - 100%) / -2) 0; padding-left: 1rem; overflow: visible; text-overflow: clip; white-space: normal; } }
 @media (max-width: 32rem) { .page { padding: 0.75rem; } .panel { margin-top: 2rem; } .word-entry { flex-direction: column; } .word-entry button { width: 100%; } .game-heading { align-items: flex-start; flex-direction: column; } .dock-inner { padding-inline: 0.4rem; } .key { min-width: 1.9rem; height: 2.55rem; padding: 0 0.25rem; } .key.wide { min-width: 3.25rem; } }

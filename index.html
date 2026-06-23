@@ -26,6 +26,7 @@
             <button type="submit">Create link</button>
           </div>
           <label class="space-option"><input id="keep-spaces" type="checkbox" /> Keep spaces in the puzzle</label>
+          <label class="guess-limit-option"><input id="enable-guess-limit" type="checkbox" /> Limit guesses to <input id="guess-limit" type="number" min="1" max="9999" value="7" disabled /></label>
           <p class="field-help">Letters and spaces · up to 1,000 characters.</p>
           <p id="word-validation" class="field-error" role="alert" aria-live="polite"></p>
         </form>
@@ -39,20 +40,16 @@
         <p id="creator-message" class="message" role="status" aria-live="polite"></p>
       </section>
 
-      <section id="game" class="game" hidden aria-labelledby="game-title">
+      <section id="game" class="game" hidden aria-label="Custom Wordle game">
         <div class="game-heading">
-          <div>
-            <p class="eyebrow">Unlimited guesses</p>
-            <h1 id="game-title">Custom Wordle</h1>
-            <p id="game-meta" class="intro"></p>
-          </div>
+          <p id="game-meta" class="intro"></p>
         </div>
-        <p id="hidden-guesses" class="hidden-guesses" hidden></p>
         <div id="board-wrap" class="board-wrap">
           <div id="board" class="board" aria-label="Wordle game board"></div>
         </div>
         <div id="history-actions" class="history-actions" hidden>
           <button id="copy-history" type="button">Copy guess history</button>
+          <button id="reveal-ended-word" type="button" hidden>Reveal word</button>
         </div>
       </section>
     </main>
