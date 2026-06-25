@@ -450,7 +450,7 @@ function createEmptyGuessRow() {
   row.className = 'row canvas-row empty-guess-row';
   row.style.setProperty('--word-length', secret.length);
   row.dataset.scored = 'true';
-  row._guess = Array(secret.length).fill('');
+  row._guess = [...secret].map(letter => letter === ' ' ? ' ' : '');
   row._score = Array(secret.length).fill('empty');
   row.setAttribute('aria-label', 'Unused guess');
   prepareCanvasPlaceholder(row);
