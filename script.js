@@ -1,5 +1,7 @@
 const MAX_WORD_LENGTH = 1000;
 const CANVAS_CHUNK_SIZE = 100;
+const WORD_LIST_URL = './words.txt';
+const RANDOM_WORD_GUESS_LIMIT = 6;
 const KEY_ROWS = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
 const KEY_STATUS_PRIORITY = { absent: 1, present: 2, correct: 3 };
 const KEY_STATUS_CLASSES = ['absent', 'present', 'correct'];
@@ -14,6 +16,7 @@ const shareResult = document.querySelector('#share-result');
 const shareLink = document.querySelector('#share-link');
 const creatorMessage = document.querySelector('#creator-message');
 const wordValidation = document.querySelector('#word-validation');
+const playRandomWord = document.querySelector('#play-random-word');
 const board = document.querySelector('#board');
 const boardWrap = document.querySelector('#board-wrap');
 const horizontalScrollbar = document.querySelector('#horizontal-scrollbar');
@@ -46,6 +49,8 @@ let wheelScrollFrame = 0;
 let wheelScrollTarget = 0;
 let keyStates = Object.create(null);
 let lastActiveTile = null;
+let requireValidGuesses = false;
+let wordListPromise = null;
 const keyboardButtons = new Map();
 
 function normalizeWord(value, preserveSpaces = false) {
@@ -94,16 +99,50 @@ async function copyText(text, successMessage) {
   setMessage(secret ? gameMessage : creatorMessage, successMessage);
 }
 
-function makeShareLink(word, limit) {
+function makeShareLink(word, limit, validateGuesses = false) {
   const url = new URL(window.location.href);
   url.search = `?word=${encodeWord(word)}`;
   if (limit) url.searchParams.set('limit', limit);
+  if (validateGuesses) url.searchParams.set('valid', '1');
   url.hash = '';
   return url.href;
 }
 
 function normalizedGuessLimit(value) {
   return Math.max(1, Math.min(9999, Number.parseInt(value, 10) || 7));
+}
+
+function randomIndex(maximum) {
+  if (globalThis.crypto?.getRandomValues) {
+    const values = new Uint32Array(1);
+    globalThis.crypto.getRandomValues(values);
+    return values[0] % maximum;
+  }
+  return Math.floor(Math.random() * maximum);
+}
+
+async function loadWordList() {
+  if (!wordListPromise) {
+    wordListPromise = fetch(WORD_LIST_URL, { cache: 'force-cache' })
+      .then(response => {
+        if (!response.ok) throw new Error(`Word list request failed: ${response.status}`);
+        return response.text();
+      })
+      .then(text => {
+        const words = text
+          .split(/\r?\n/)
+          .map(word => normalizeWord(word))
+          .filter(word => word && word.length <= MAX_WORD_LENGTH);
+        if (!words.length) throw new Error('Word list was empty.');
+        return { words, wordSet: new Set(words) };
+      });
+  }
+  return wordListPromise;
+}
+
+async function fetchRandomWord() {
+  const { words } = await loadWordList();
+  return words[randomIndex(words.length)];
 }
 
 function scoreGuess(letters) {
@@ -502,12 +541,24 @@ function pasteIntoRow(row, startInput, text) {
   return true;
 }
 
-function submitRow(row) {
-  if (row.dataset.scored) return;
+async function submitRow(row) {
+  if (row.dataset.scored || row.dataset.checking) return;
   const inputs = [...row.children];
   const letters = inputs.map(input => input.value);
   if (!allowIncomplete.checked && letters.some(letter => !letter)) { setMessage(gameMessage, 'Complete every square before checking the guess.'); return; }
   const guess = letters.join('');
+  if (requireValidGuesses) {
+    row.dataset.checking = 'true';
+    try {
+      const { wordSet } = await loadWordList();
+      if (!wordSet.has(guess)) { setMessage(gameMessage, 'Not in word list.'); return; }
+    } catch {
+      setMessage(gameMessage, 'Could not load the word list.');
+      return;
+    } finally {
+      delete row.dataset.checking;
+    }
+  }
   const score = scoreGuess(letters);
   latestGuess = guess;
   guessHistory.push(guess);
@@ -553,9 +604,9 @@ function copyCorrectPrefix() {
   if (uninterrupted) copyText(uninterrupted, `Copied ${uninterrupted}.`);
 }
 
-function startGame(word, limit = null) {
+function startGame(word, limit = null, validateGuesses = false) {
   board.querySelectorAll('.canvas-row').forEach(row => scoredRowObserver?.unobserve(row));
-  secret = word; guessLimit = limit; latestScore = []; latestGuess = ''; guessHistory = []; lastActiveTile = null; board.replaceChildren();
+  secret = word; guessLimit = limit; requireValidGuesses = validateGuesses; latestScore = []; latestGuess = ''; guessHistory = []; lastActiveTile = null; board.replaceChildren();
   creator.hidden = true; game.hidden = false; gameDock.hidden = false;
   syncDockHeight();
   allowIncomplete.checked = false;
@@ -600,6 +651,22 @@ customWord.addEventListener('input', validateCustomWord);
 enableGuessLimit.addEventListener('change', () => {
   guessLimitInput.disabled = !enableGuessLimit.checked;
   if (enableGuessLimit.checked) guessLimitInput.value = normalizedGuessLimit(guessLimitInput.value);
+});
+playRandomWord.addEventListener('click', async () => {
+  const label = playRandomWord.textContent;
+  playRandomWord.disabled = true;
+  playRandomWord.textContent = 'Loading...';
+  setMessage(creatorMessage, 'Loading random word.');
+  try {
+    const word = await fetchRandomWord();
+    history.pushState({}, '', makeShareLink(word, RANDOM_WORD_GUESS_LIMIT, true));
+    startGame(word, RANDOM_WORD_GUESS_LIMIT, true);
+  } catch {
+    setMessage(creatorMessage, 'Could not load the random word list.');
+  } finally {
+    playRandomWord.disabled = false;
+    playRandomWord.textContent = label;
+  }
 });
 document.querySelector('#copy-link').addEventListener('click', () => copyText(shareLink.value, 'Link copied.'));
 document.querySelector('#new-game').addEventListener('click', () => { history.replaceState({}, '', window.location.pathname); secret = ''; game.hidden = true; gameDock.hidden = true; horizontalScrollbar.hidden = true; creator.hidden = false; customWord.focus(); });
@@ -688,10 +755,12 @@ document.addEventListener('paste', event => {
   if (pasteIntoRow(row, startInput, event.clipboardData?.getData('text') || '')) event.preventDefault();
 });
 
-const encodedWord = new URLSearchParams(window.location.search).get('word');
+const searchParams = new URLSearchParams(window.location.search);
+const encodedWord = searchParams.get('word');
 const decodedWord = encodedWord ? decodeWord(encodedWord) : '';
-const linkedGuessLimit = new URLSearchParams(window.location.search).get('limit');
-if (decodedWord) startGame(decodedWord, linkedGuessLimit ? normalizedGuessLimit(linkedGuessLimit) : null);
+const linkedGuessLimit = searchParams.get('limit');
+const linkedRequiresValidation = searchParams.get('valid') === '1';
+if (decodedWord) startGame(decodedWord, linkedGuessLimit ? normalizedGuessLimit(linkedGuessLimit) : (linkedRequiresValidation ? RANDOM_WORD_GUESS_LIMIT : null), linkedRequiresValidation);
 else if (encodedWord) setMessage(creatorMessage, 'That link does not contain a valid custom word.');
 
 new ResizeObserver(() => { syncDockHeight(); syncHorizontalScrollbar(); }).observe(gameDock);
