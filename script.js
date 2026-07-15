@@ -47,6 +47,7 @@ let followFrame = 0;
 let followTarget = 0;
 let wheelScrollFrame = 0;
 let wheelScrollTarget = 0;
+let layoutRefreshFrame = 0;
 let keyStates = Object.create(null);
 let lastActiveTile = null;
 let requireValidGuesses = false;
@@ -349,6 +350,8 @@ function appendRevealedGuess() {
 }
 
 function getTileMetrics() {
+  const activeMetrics = measureTileMetrics(board.querySelector('.row:not(.canvas-row)'));
+  if (activeMetrics) return activeMetrics;
   const rootFontSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
   return {
     gap: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap')) * rootFontSize,
@@ -356,9 +359,23 @@ function getTileMetrics() {
   };
 }
 
+function measureTileMetrics(row) {
+  const tiles = row ? [...row.children].filter(child => child.classList?.contains('tile')) : [];
+  if (!tiles.length) return null;
+  const firstBox = tiles[0].getBoundingClientRect();
+  if (!Number.isFinite(firstBox.width) || firstBox.width <= 0) return null;
+  const secondBox = tiles[1]?.getBoundingClientRect();
+  const measuredGap = secondBox ? secondBox.left - firstBox.right : NaN;
+  const fallbackGap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap')) * parseFloat(getComputedStyle(document.documentElement).fontSize);
+  return {
+    gap: Number.isFinite(measuredGap) ? Math.max(0, measuredGap) : fallbackGap,
+    size: firstBox.width,
+  };
+}
+
 function drawScoredCanvasRow(row) {
   row.querySelectorAll('canvas').forEach(canvas => { canvas.width = 0; canvas.height = 0; });
-  const { size, gap } = getTileMetrics();
+  const { size, gap } = measureTileMetrics(row) || getTileMetrics();
   const pixelRatio = 1;
   const colors = getComputedStyle(document.documentElement);
   const stateColors = {
@@ -427,6 +444,28 @@ function redrawScoredCanvasRows() {
   board.querySelectorAll('.canvas-row').forEach(row => {
     if (row._rendered) drawScoredCanvasRow(row);
     else prepareCanvasPlaceholder(row);
+  });
+}
+
+function refreshGameLayout() {
+  const previousMaximum = Math.max(0, boardWrap.scrollWidth - boardWrap.clientWidth);
+  const horizontalProgress = previousMaximum ? boardWrap.scrollLeft / previousMaximum : 0;
+  syncDockHeight();
+  if (!game.hidden) redrawScoredCanvasRows();
+  requestAnimationFrame(() => {
+    const nextMaximum = Math.max(0, boardWrap.scrollWidth - boardWrap.clientWidth);
+    boardWrap.scrollLeft = nextMaximum * horizontalProgress;
+    followTarget = boardWrap.scrollLeft;
+    wheelScrollTarget = boardWrap.scrollLeft;
+    syncHorizontalScrollbar();
+  });
+}
+
+function scheduleGameLayoutRefresh() {
+  if (layoutRefreshFrame) return;
+  layoutRefreshFrame = requestAnimationFrame(() => {
+    layoutRefreshFrame = 0;
+    refreshGameLayout();
   });
 }
 
@@ -690,20 +729,12 @@ revealEndedWord.addEventListener('click', () => {
   setMessage(gameMessage, 'Word revealed.');
   revealEndedWord.disabled = true;
 });
-  boardZoom.addEventListener('input', () => {
-  const previousMaximum = Math.max(0, boardWrap.scrollWidth - boardWrap.clientWidth);
-  const horizontalProgress = previousMaximum ? boardWrap.scrollLeft / previousMaximum : 0;
+boardZoom.addEventListener('input', () => {
   stopHorizontalFollow();
   const percent = Number(boardZoom.value);
   zoomValue.value = `${percent}%`; zoomValue.textContent = `${percent}%`;
   board.style.setProperty('--tile-size', scaledTileSize());
-  redrawScoredCanvasRows();
-  requestAnimationFrame(() => {
-    const nextMaximum = Math.max(0, boardWrap.scrollWidth - boardWrap.clientWidth);
-    boardWrap.scrollLeft = nextMaximum * horizontalProgress;
-    followTarget = boardWrap.scrollLeft;
-    syncHorizontalScrollbar();
-  });
+  refreshGameLayout();
 });
 boardScrollRange.addEventListener('input', () => {
   stopHorizontalFollow();
@@ -763,5 +794,7 @@ const linkedRequiresValidation = searchParams.get('valid') === '1';
 if (decodedWord) startGame(decodedWord, linkedGuessLimit ? normalizedGuessLimit(linkedGuessLimit) : (linkedRequiresValidation ? RANDOM_WORD_GUESS_LIMIT : null), linkedRequiresValidation);
 else if (encodedWord) setMessage(creatorMessage, 'That link does not contain a valid custom word.');
 
-new ResizeObserver(() => { syncDockHeight(); syncHorizontalScrollbar(); }).observe(gameDock);
-new ResizeObserver(syncHorizontalScrollbar).observe(boardWrap);
+new ResizeObserver(scheduleGameLayoutRefresh).observe(gameDock);
+new ResizeObserver(scheduleGameLayoutRefresh).observe(boardWrap);
+window.addEventListener('resize', scheduleGameLayoutRefresh);
+window.visualViewport?.addEventListener('resize', scheduleGameLayoutRefresh);
