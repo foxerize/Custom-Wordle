@@ -31,6 +31,7 @@ const gameDock = document.querySelector('#game-dock');
 const settingsOverlay = document.querySelector('#settings-overlay');
 const openSettings = document.querySelector('#open-settings');
 const closeSettings = document.querySelector('#close-settings');
+const defaultSettings = document.querySelector('#default-settings');
 const saveSettings = document.querySelector('#save-settings');
 const settingsSaveStatus = document.querySelector('#settings-save-status');
 const keyboard = document.querySelector('#keyboard');
@@ -43,7 +44,8 @@ const allowIncomplete = document.querySelector('#allow-incomplete');
 const incompleteOption = allowIncomplete.closest('.incomplete-option');
 const copyCorrectModes = document.querySelectorAll('input[name="copy-correct-mode"]');
 const autoScrollStart = document.querySelector('#auto-scroll-start');
-const easyMode = document.querySelector('#easy-mode');
+const lockCorrectLetters = document.querySelector('#lock-correct-letters');
+const blockRepeatSpots = document.querySelector('#block-repeat-spots');
 const revealWord = document.querySelector('#reveal-word');
 const copyLastGuess = document.querySelector('#copy-last-guess');
 let secret = '';
@@ -217,9 +219,11 @@ function useVirtualKey(key) {
   const row = board.querySelector('.row:not([data-scored])');
   if (!row) return;
   const inputs = [...row.children];
-  let input = inputs.includes(document.activeElement) ? document.activeElement : inputs.find(tile => !tile.value) || inputs.at(-1);
+  let input = inputs.includes(document.activeElement) && !document.activeElement.readOnly && !isTileLocked(document.activeElement) ? document.activeElement : inputs.find(tile => !tile.readOnly && !tile.value && !isTileLocked(tile)) || inputs.find(tile => !tile.readOnly && !isTileLocked(tile));
+  if (!input) return;
   if (key === 'ENTER') { submitRow(row); return; }
   if (key === '⌫') {
+    if (isTileLocked(input)) return;
     if (input.value) { input.value = ''; input.classList.remove('filled'); }
     else if (input.previousElementSibling) focusTile(input.previousElementSibling, 'previousElementSibling');
     return;
@@ -316,7 +320,7 @@ function smoothlyScrollByWheel(distance) {
 }
 
 function focusTile(tile, direction = 'nextElementSibling', keepVisible = true) {
-  while (tile?.classList.contains('space')) tile = tile[direction];
+  while (tile?.classList.contains('space') || isTileLocked(tile)) tile = tile[direction];
   if (!tile) return;
   tile.focus({ preventScroll: true });
   if (keepVisible) keepTileVisible(tile);
@@ -510,7 +514,7 @@ function syncHorizontalScrollbar() {
   boardScrollRange.value = String(Math.min(Math.round(boardWrap.scrollLeft), maximum));
 }
 
-function createRow(focusFirst = false, seed = [], insertBefore = null, focusIndex = null, keepFocusedTileVisible = true) {
+function createRow(focusFirst = false, seed = [], insertBefore = null, focusIndex = null, keepFocusedTileVisible = true, locked = []) {
   const row = document.createElement('div');
   row.className = 'row';
   row.style.setProperty('--word-length', secret.length);
@@ -520,7 +524,15 @@ function createRow(focusFirst = false, seed = [], insertBefore = null, focusInde
     input.setAttribute('aria-label', `Guess letter ${index + 1}`);
     const isSpace = secret[index] === ' ';
     if (isSpace) { input.value = ' '; input.readOnly = true; input.classList.add('space'); input.setAttribute('aria-label', 'Word break'); }
-    else input.value = seed[index] || '';
+    else {
+      input.value = seed[index] || '';
+      if (locked[index]) {
+        input.dataset.locked = lockCorrectLetters.checked ? 'true' : '';
+        input.classList.add('locked');
+        input.classList.toggle('lock-active', lockCorrectLetters.checked);
+        input.setAttribute('aria-label', `Locked correct letter ${index + 1}`);
+      }
+    }
     input.classList.toggle('filled', Boolean(input.value));
     row.append(input);
   }
@@ -533,9 +545,9 @@ function createRow(focusFirst = false, seed = [], insertBefore = null, focusInde
 
 function firstEditableEmptyIndex(row) {
   const tiles = [...row.children];
-  const emptyIndex = tiles.findIndex(tile => !tile.readOnly && !tile.value);
+  const emptyIndex = tiles.findIndex(tile => !tile.readOnly && !isTileLocked(tile) && !tile.value);
   if (emptyIndex !== -1) return emptyIndex;
-  const editableIndex = tiles.findIndex(tile => !tile.readOnly);
+  const editableIndex = tiles.findIndex(tile => !tile.readOnly && !isTileLocked(tile));
   return editableIndex === -1 ? 0 : editableIndex;
 }
 
@@ -573,6 +585,7 @@ board.addEventListener('focusin', event => {
 board.addEventListener('beforeinput', event => {
   const input = event.target;
   if (!input.classList.contains('tile')) return;
+  if (isTileLocked(input)) { event.preventDefault(); return; }
   const letter = normalizeWord(event.data || '').slice(-1);
   if (letter && !canUseLetterInTile(input, letter)) event.preventDefault();
 });
@@ -595,6 +608,7 @@ board.addEventListener('keydown', event => {
 });
 
 function handleTileKey(event, row, input) {
+  if (event.key === 'Backspace' && isTileLocked(input)) { event.preventDefault(); focusTile(input.previousElementSibling, 'previousElementSibling'); return; }
   if (event.key === 'Backspace' && !input.value && input.previousElementSibling) focusTile(input.previousElementSibling, 'previousElementSibling');
   if (event.key === 'ArrowLeft' && input.previousElementSibling) { event.preventDefault(); focusTile(input.previousElementSibling, 'previousElementSibling'); }
   if (event.key === 'ArrowRight' && input.nextElementSibling) { event.preventDefault(); focusTile(input.nextElementSibling); }
@@ -608,7 +622,7 @@ function pasteIntoRow(row, startInput, text) {
   const inputs = [...row.children];
   let index = inputs.indexOf(startInput);
   for (const letter of letters) {
-    while (inputs[index]?.readOnly) index += 1;
+    while (inputs[index]?.readOnly || isTileLocked(inputs[index])) index += 1;
     if (!inputs[index]) break;
     if (!canUseLetterInTile(inputs[index], letter)) { index += 1; continue; }
     inputs[index].value = letter;
@@ -627,11 +641,23 @@ function hasTriedLetterInSpot(letter, index) {
 
 function canUseLetterInTile(tile, letter, showMessage = true) {
   const normalized = normalizeWord(letter).slice(-1);
-  if (!easyMode.checked || !normalized || normalized === ' ') return true;
+  if (!blockRepeatSpots.checked || !normalized || normalized === ' ') return true;
   const index = [...tile.parentElement.children].indexOf(tile);
   if (!hasTriedLetterInSpot(normalized, index)) return true;
   if (showMessage) setMessage(gameMessage, `${normalized} was already tried in spot ${index + 1}.`);
   return false;
+}
+
+function isTileLocked(tile) {
+  return Boolean(lockCorrectLetters.checked && tile?.dataset.locked);
+}
+
+function syncCorrectLetterLocks() {
+  board.querySelectorAll('.tile.locked').forEach(tile => {
+    tile.dataset.locked = lockCorrectLetters.checked ? 'true' : '';
+    tile.classList.toggle('lock-active', lockCorrectLetters.checked);
+    tile.setAttribute('aria-label', lockCorrectLetters.checked ? `Locked correct letter ${[...tile.parentElement.children].indexOf(tile) + 1}` : `Guess letter ${[...tile.parentElement.children].indexOf(tile) + 1}`);
+  });
 }
 
 function selectedCopyCorrectMode() {
@@ -651,8 +677,9 @@ function saveUserSettings() {
     localStorage.setItem(USER_SETTINGS_KEY, JSON.stringify({
       allowIncomplete: allowIncomplete.checked,
       autoScrollStart: autoScrollStart.checked,
+      blockRepeatSpots: blockRepeatSpots.checked,
       copyCorrectMode: selectedCopyCorrectMode(),
-      easyMode: easyMode.checked,
+      lockCorrectLetters: lockCorrectLetters.checked,
     }));
   } catch {}
 }
@@ -661,9 +688,20 @@ function loadUserSettings() {
   const settings = readUserSettings();
   allowIncomplete.checked = Boolean(settings.allowIncomplete);
   autoScrollStart.checked = settings.autoScrollStart !== false;
-  easyMode.checked = Boolean(settings.easyMode);
+  blockRepeatSpots.checked = Boolean(settings.blockRepeatSpots ?? settings.easyMode);
+  lockCorrectLetters.checked = Boolean(settings.lockCorrectLetters ?? settings.easyMode);
   const copyMode = ['none', 'start', 'end', 'all'].includes(settings.copyCorrectMode) ? settings.copyCorrectMode : 'start';
   copyCorrectModes.forEach(input => { input.checked = input.value === copyMode; });
+  syncCorrectLetterLocks();
+}
+
+function applyDefaultSettings() {
+  allowIncomplete.checked = false;
+  autoScrollStart.checked = true;
+  blockRepeatSpots.checked = false;
+  lockCorrectLetters.checked = false;
+  copyCorrectModes.forEach(input => { input.checked = input.value === 'start'; });
+  syncCorrectLetterLocks();
 }
 
 function firstUnfilledSeedIndex(seed) {
@@ -673,15 +711,24 @@ function firstUnfilledSeedIndex(seed) {
 
 function nextGuessSeed(letters, score) {
   const seed = Array(secret.length).fill('');
+  const locked = Array(secret.length).fill(false);
   const mode = selectedCopyCorrectMode();
+  if (lockCorrectLetters.checked) {
+    score.forEach((state, index) => {
+      if (state === 'correct' && letters[index] !== ' ') {
+        seed[index] = letters[index];
+        locked[index] = true;
+      }
+    });
+  }
 
-  if (mode === 'none') return { focusIndex: firstUnfilledSeedIndex(seed), seed };
+  if (mode === 'none') return { focusIndex: firstUnfilledSeedIndex(seed), locked, seed };
 
   if (mode === 'all') {
     score.forEach((state, index) => {
       if (state === 'correct' && letters[index] !== ' ') seed[index] = letters[index];
     });
-    return { focusIndex: firstUnfilledSeedIndex(seed), seed };
+    return { focusIndex: firstUnfilledSeedIndex(seed), locked, seed };
   }
 
   if (mode === 'end') {
@@ -690,7 +737,7 @@ function nextGuessSeed(letters, score) {
       if (letters[index] !== ' ') seed[index] = letters[index];
       index -= 1;
     }
-    return { focusIndex: firstUnfilledSeedIndex(seed), seed };
+    return { focusIndex: firstUnfilledSeedIndex(seed), locked, seed };
   }
 
   let index = 0;
@@ -698,7 +745,7 @@ function nextGuessSeed(letters, score) {
     if (letters[index] !== ' ') seed[index] = letters[index];
     index += 1;
   }
-  return { focusIndex: index, seed };
+  return { focusIndex: firstUnfilledSeedIndex(seed), locked, seed };
 }
 
 function scrollToGuessStart() {
@@ -781,9 +828,9 @@ async function submitRow(row) {
     const nextEmptyRow = board.querySelector('.empty-guess-row');
     if (nextEmptyRow) {
       scoredRowObserver?.unobserve(nextEmptyRow);
-      createRow(true, nextSeed.seed, nextEmptyRow, nextSeed.focusIndex, !autoScrollStart.checked);
+      createRow(true, nextSeed.seed, nextEmptyRow, nextSeed.focusIndex, !autoScrollStart.checked, nextSeed.locked);
       nextEmptyRow.remove();
-    } else createRow(true, nextSeed.seed, null, nextSeed.focusIndex, !autoScrollStart.checked);
+    } else createRow(true, nextSeed.seed, null, nextSeed.focusIndex, !autoScrollStart.checked, nextSeed.locked);
     if (autoScrollStart.checked) scrollToGuessStart();
     setMessage(gameMessage, '');
   }
@@ -890,6 +937,11 @@ saveSettings.addEventListener('click', () => {
   saveUserSettings();
   settingsSaveStatus.textContent = 'Settings saved.';
 });
+defaultSettings.addEventListener('click', () => {
+  applyDefaultSettings();
+  settingsSaveStatus.textContent = 'Default settings applied.';
+});
+lockCorrectLetters.addEventListener('change', syncCorrectLetterLocks);
 boardZoom.addEventListener('input', () => {
   stopHorizontalFollow();
   const percent = Number(boardZoom.value);
@@ -938,9 +990,9 @@ document.addEventListener('keydown', event => {
   const row = board.querySelector('.row:not([data-scored])');
   if (!row) return;
   const inputs = [...row.children];
-  const input = inputs.includes(lastActiveTile) && !lastActiveTile.readOnly
+  const input = inputs.includes(lastActiveTile) && !lastActiveTile.readOnly && !isTileLocked(lastActiveTile)
     ? lastActiveTile
-    : inputs.find(tile => !tile.value && !tile.readOnly);
+    : inputs.find(tile => !tile.value && !tile.readOnly && !isTileLocked(tile));
   if (!input) return;
 
   event.preventDefault();
@@ -955,9 +1007,9 @@ document.addEventListener('paste', event => {
   const row = board.querySelector('.row:not([data-scored])');
   if (!row) return;
   const inputs = [...row.children];
-  const startInput = inputs.includes(lastActiveTile) && !lastActiveTile.readOnly
+  const startInput = inputs.includes(lastActiveTile) && !lastActiveTile.readOnly && !isTileLocked(lastActiveTile)
     ? lastActiveTile
-    : inputs.find(input => !input.value && !input.readOnly);
+    : inputs.find(input => !input.value && !input.readOnly && !isTileLocked(input));
   if (!startInput) return;
 
   if (pasteIntoRow(row, startInput, event.clipboardData?.getData('text') || '')) event.preventDefault();

@@ -88,11 +88,15 @@
           <label class="settings-option"><input type="radio" name="copy-correct-mode" value="all" /> All correct letters</label>
         </fieldset>
         <label class="settings-option"><input id="auto-scroll-start" type="checkbox" checked /> Auto scroll to start after guessing</label>
+        <label class="settings-option"><input id="lock-correct-letters" type="checkbox" /> Lock correct letters</label>
         <label class="settings-option easy-mode-option">
-          <input id="easy-mode" type="checkbox" /> Easy mode
-          <span class="tooltip" tabindex="0" aria-label="Blocks guesses that reuse any letter in the same spot as an earlier checked guess.">?</span>
+          <input id="block-repeat-spots" type="checkbox" /> Block repeat spot guesses
+          <span class="tooltip" tabindex="0" aria-label="Blocks guesses that reuse a wrong letter in the same spot as an earlier checked guess.">?</span>
         </label>
-        <button id="save-settings" class="settings-save" type="button">Save settings</button>
+        <div class="settings-buttons">
+          <button id="save-settings" class="settings-save" type="button">Save settings</button>
+          <button id="default-settings" class="settings-default" type="button" aria-label="Reset to default">↺</button>
+        </div>
         <p id="settings-save-status" class="settings-save-status" role="status" aria-live="polite"></p>
       </section>
     </div>
