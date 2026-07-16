@@ -67,9 +67,28 @@ label { display: block; margin-bottom: 0.45rem; font-weight: 700; }
 .zoom-control { display: flex; align-items: center; gap: 0.65rem; width: fit-content; margin: 0.4rem auto; color: var(--muted); font-size: 0.8rem; font-weight: 650; }
 .zoom-control input { accent-color: #93c47d; cursor: pointer; }
 .zoom-control output { width: 3rem; color: #fff; text-align: right; font-variant-numeric: tabular-nums; }
-.incomplete-option { display: flex; align-items: center; justify-content: center; gap: 0.45rem; margin: 0.3rem auto; color: var(--muted); font-size: 0.78rem; font-weight: 650; }
-.incomplete-option input { width: 0.9rem; height: 0.9rem; accent-color: #93c47d; }
-.incomplete-option[hidden] { display: none; }
+.settings-trigger { display: block; margin: 0.35rem auto 0; padding: 0.32rem 0.6rem; border-radius: 0.25rem; color: #fff; background: #27272a; font-size: 0.78rem; }
+.settings-trigger:hover { background: #3f3f46; }
+.settings-overlay { position: fixed; z-index: 40; inset: 0; display: grid; place-items: center; padding: 1rem; background: rgba(0, 0, 0, 0.62); opacity: 0; pointer-events: none; transition: opacity 120ms ease; }
+.settings-overlay.is-open { opacity: 1; pointer-events: auto; }
+.settings-overlay[hidden] { display: none; }
+.settings-panel { display: grid; gap: 0.85rem; width: min(92vw, 26rem); border: 1px solid var(--border); border-radius: 0.45rem; padding: 1.1rem; color: #e4e4e7; background: #1c1c1d; box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.5); transform: translateY(0.4rem) scale(0.98); transition: transform 120ms ease; }
+.settings-overlay.is-open .settings-panel { transform: translateY(0) scale(1); }
+.settings-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.settings-header h2 { margin: 0; font-size: 1.3rem; letter-spacing: -0.03em; }
+.settings-close { width: 2rem; height: 2rem; border-radius: 0.25rem; padding: 0; color: #fff; background: #27272a; font-size: 1.35rem; line-height: 1; }
+.settings-close:hover { background: #3f3f46; }
+.settings-option { display: flex; align-items: center; gap: 0.55rem; margin: 0; color: inherit; font-size: 0.95rem; font-weight: 650; }
+.settings-option input { width: 1rem; height: 1rem; accent-color: #93c47d; }
+.settings-option[hidden], .incomplete-option[hidden] { display: none; }
+.settings-group { display: grid; gap: 0.45rem; margin: 0; border: 0; padding: 0; }
+.settings-group legend { margin-bottom: 0.1rem; padding: 0; color: var(--muted); font-size: 0.82rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
+.tooltip { position: relative; display: inline-grid; place-items: center; width: 1.15rem; height: 1.15rem; border-radius: 999px; color: #121213; background: var(--muted); font-size: 0.78rem; font-weight: 900; cursor: help; }
+.tooltip::after { content: attr(aria-label); position: absolute; bottom: calc(100% + 0.5rem); left: 50%; width: min(18rem, 82vw); border: 1px solid var(--border); border-radius: 0.3rem; padding: 0.65rem 0.75rem; color: #fff; background: #27272a; box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.35); font-size: 0.95rem; line-height: 1.35; opacity: 0; pointer-events: none; transform: translateX(-50%) translateY(0.25rem); transition: opacity 100ms ease, transform 100ms ease; }
+.tooltip:hover::after, .tooltip:focus::after { opacity: 1; transform: translateX(-50%) translateY(0); }
+.settings-save { margin-top: 0.15rem; padding: 0.65rem 0.8rem; color: #121213; background: #f3f4f6; font-size: 0.95rem; }
+.settings-save:hover { background: #d4d4d8; }
+.settings-save-status { min-height: 1.1rem; margin: -0.25rem 0 0; color: #93c47d; font-size: 0.85rem; font-weight: 700; }
 .game-actions { display: flex; justify-content: space-between; width: min(100%, 34rem); margin: 0.35rem auto; }
 .game-actions button { padding: 0.4rem 0.6rem; border-radius: 0.25rem; color: #fff; background: #565758; font-size: 0.75rem; }
 .game-actions button:hover { background: #787c7e; }

@@ -64,15 +64,38 @@
           <span class="status-box absent"><strong id="absent-count">0</strong> missing</span>
         </div>
         <label class="zoom-control" for="board-zoom">Board size <input id="board-zoom" type="range" min="70" max="300" value="175" /> <output id="zoom-value" for="board-zoom">175%</output></label>
-        <label class="incomplete-option"><input id="allow-incomplete" type="checkbox" /> Allow incomplete guesses</label>
         <div class="game-actions">
           <button id="reveal-word" type="button">Reveal word</button>
           <button id="copy-last-guess" type="button" disabled>Copy last guess</button>
         </div>
         <div id="keyboard" class="keyboard" aria-label="On-screen keyboard"></div>
+        <button id="open-settings" class="settings-trigger" type="button">Settings</button>
         <p id="game-message" class="message dock-message" role="status" aria-live="polite"></p>
       </div>
     </aside>
+    <div id="settings-overlay" class="settings-overlay" hidden>
+      <section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <div class="settings-header">
+          <h2 id="settings-title">Settings</h2>
+          <button id="close-settings" class="settings-close" type="button" aria-label="Close settings">×</button>
+        </div>
+        <label class="settings-option incomplete-option"><input id="allow-incomplete" type="checkbox" /> Allow incomplete guesses</label>
+        <fieldset class="settings-group">
+          <legend>Copy correct letters</legend>
+          <label class="settings-option"><input type="radio" name="copy-correct-mode" value="none" /> No correct letters</label>
+          <label class="settings-option"><input type="radio" name="copy-correct-mode" value="start" checked /> Starting letters</label>
+          <label class="settings-option"><input type="radio" name="copy-correct-mode" value="end" /> End letters</label>
+          <label class="settings-option"><input type="radio" name="copy-correct-mode" value="all" /> All correct letters</label>
+        </fieldset>
+        <label class="settings-option"><input id="auto-scroll-start" type="checkbox" checked /> Auto scroll to start after guessing</label>
+        <label class="settings-option easy-mode-option">
+          <input id="easy-mode" type="checkbox" /> Easy mode
+          <span class="tooltip" tabindex="0" aria-label="Blocks guesses that reuse any letter in the same spot as an earlier checked guess.">?</span>
+        </label>
+        <button id="save-settings" class="settings-save" type="button">Save settings</button>
+        <p id="settings-save-status" class="settings-save-status" role="status" aria-live="polite"></p>
+      </section>
+    </div>
     <div id="horizontal-scrollbar" class="horizontal-scrollbar" hidden>
       <input id="board-scroll-range" type="range" min="0" value="0" aria-label="Scroll across the current guess" />
     </div>
